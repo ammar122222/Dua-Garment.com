@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, User, Menu, X } from "lucide-react";
+import { Search, ShoppingCart, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   cartItems: number;
@@ -17,6 +18,7 @@ export const Header = ({ cartItems, onCartClick, onSearchChange }: HeaderProps) 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const { isAuthenticated, role, logout, loading } = useAuth();
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -30,12 +32,17 @@ export const Header = ({ cartItems, onCartClick, onSearchChange }: HeaderProps) 
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   const navigationItems = [
     { name: "Men", href: "/men" },
     { name: "Women", href: "/women" },
     { name: "Kids", href: "/kids" },
     { name: "New Arrivals", href: "/new-arrivals" },
-    { name: "Sale", "href": "/sale" },
+    { name: "Sale", href: "/sale" },
   ];
 
   return (
@@ -110,15 +117,32 @@ export const Header = ({ cartItems, onCartClick, onSearchChange }: HeaderProps) 
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link to="/login">Login</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/signup">Sign Up</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/account">My Account</Link>
-                </DropdownMenuItem>
+                {!isAuthenticated && !loading && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link to="/login">Login</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/signup">Sign Up</Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isAuthenticated && !loading && role === "customer" && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link to="/account">My Account</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                  </>
+                )}
+                {isAuthenticated && !loading && role === "admin" && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">Admin Dashboard</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -163,9 +187,24 @@ export const Header = ({ cartItems, onCartClick, onSearchChange }: HeaderProps) 
                         {item.name}
                       </Link>
                     ))}
-                    {/* Add Account and Admin links to mobile menu */}
-                    <Link to="/account" className="text-lg font-medium hover:text-primary transition-colors" onClick={() => setIsMenuOpen(false)}>Account</Link>
-                    <Link to="/admin" className="text-lg font-medium hover:text-primary transition-colors" onClick={() => setIsMenuOpen(false)}>Admin</Link>
+                    {!isAuthenticated && !loading && (
+                      <>
+                        <Link to="/login" className="text-lg font-medium hover:text-primary transition-colors" onClick={() => setIsMenuOpen(false)}>Login</Link>
+                        <Link to="/signup" className="text-lg font-medium hover:text-primary transition-colors" onClick={() => setIsMenuOpen(false)}>Sign Up</Link>
+                      </>
+                    )}
+                    {isAuthenticated && !loading && role === "customer" && (
+                      <>
+                        <Link to="/account" className="text-lg font-medium hover:text-primary transition-colors" onClick={() => setIsMenuOpen(false)}>My Account</Link>
+                        <button className="text-lg font-medium hover:text-primary transition-colors text-left" onClick={() => { handleLogout(); setIsMenuOpen(false); }}>Logout</button>
+                      </>
+                    )}
+                    {isAuthenticated && !loading && role === "admin" && (
+                      <>
+                        <Link to="/admin" className="text-lg font-medium hover:text-primary transition-colors" onClick={() => setIsMenuOpen(false)}>Admin Dashboard</Link>
+                        <button className="text-lg font-medium hover:text-primary transition-colors text-left" onClick={() => { handleLogout(); setIsMenuOpen(false); }}>Logout</button>
+                      </>
+                    )}
                   </nav>
                 </div>
               </SheetContent>

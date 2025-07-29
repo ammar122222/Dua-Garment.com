@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { AnimatedAlert } from "@/components/AnimatedAlert";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 const SignupPage = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +21,7 @@ const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -33,6 +37,7 @@ const SignupPage = () => {
     setIsLoading(true);
 
     if (formData.password !== formData.confirmPassword) {
+      setAlert({ type: "error", message: "Passwords do not match" });
       toast({
         title: "Password Mismatch",
         description: "Passwords do not match",
@@ -42,19 +47,68 @@ const SignupPage = () => {
       return;
     }
 
-    // Mock signup - replace with real authentication
+    if (formData.email === "admin@duagarments.com") {
+      setAlert({ type: "error", message: "This email is reserved for admin." });
+      toast({
+        title: "Invalid Email",
+        description: "This email is reserved for admin.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+
+      try {
+        // Create the user document in the 'users' collection in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          name: formData.name,
+          role: 'customer', // Default role for new users
+          createdAt: serverTimestamp(),
+          wishlist: [],
+          banned: false,
+          status: "Active"
+        });
+      } catch (firestoreError) {
+        console.error("Failed to create user document in Firestore:", firestoreError);
+        setAlert({ type: "error", message: "Account created, but failed to save user profile. Please contact support." });
+        toast({
+          title: "Signup Incomplete",
+          description: "Your account was created but we couldn't save your profile. Please contact support.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      setAlert({ type: "success", message: "Account Created!" });
       toast({
         title: "Account Created",
         description: "Welcome to Dua Garments!",
       });
-      navigate("/login");
-    } catch (error) {
+
+      setTimeout(() => {
+        setAlert(null);
+        navigate("/"); // Navigate to home, user is already logged in.
+      }, 1200);
+    } catch (authError: any) {
+      let message = "Something went wrong. Please try again.";
+      if (authError.code === "auth/email-already-in-use") {
+        message = "This email is already in use.";
+      } else if (authError.code === "auth/invalid-email") {
+        message = "Invalid email address.";
+      } else if (authError.code === "auth/weak-password") {
+        message = "Password should be at least 6 characters.";
+      }
+      setAlert({ type: "error", message });
       toast({
         title: "Signup Failed",
-        description: "Something went wrong. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -74,6 +128,7 @@ const SignupPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {alert && <AnimatedAlert type={alert.type} message={alert.message} />}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>

@@ -4,36 +4,61 @@ import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { CategorySection } from "@/components/CategorySection";
 import { ProductCatalog } from "@/components/ProductCatalog";
-import { ShoppingCart } from "@/components/ShoppingCart"; // Corrected import syntax
+import { ShoppingCart } from "@/components/ShoppingCart";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { sampleProducts } from "@/data/products";
-import { Product, CartItem } from "@/types/product";
-import { Truck, Shield, RefreshCw, Star, ArrowRight, TrendingUp } from "lucide-react";
+
+import { Product } from "@/types/product";
+import { Truck, Shield, RefreshCw, ArrowRight, TrendingUp } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import mensCollection from "@/assets/mens-collection.jpg";
 import womensCollection from "@/assets/womens-collection.jpg";
 import kidsCollection from "@/assets/kids-collection.jpg";
 import { ColorFilter } from "@/components/ColorFilter";
 
+// ✅ Firebase
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/firebase";
+
 const Index = () => {
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
-  const [products] = useState<Product[]>(sampleProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"home" | "catalog">(searchQuery ? "catalog" : "home");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+
   const { cart, wishlist, addToCart, updateQuantity, removeFromCart, toggleWishlist, cartItemCount } = useCart();
 
-  // Update search query when URL changes
+  // ✅ Fetch products from Firebase
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "products"));
+        const fetchedProducts = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Product[];
+        setProducts(fetchedProducts);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  // ✅ Sync local search query
   useEffect(() => {
     if (searchQuery) {
       setLocalSearchQuery(searchQuery);
@@ -93,7 +118,6 @@ const Index = () => {
               Review your items and proceed to checkout.
             </SheetDescription>
           </SheetHeader>
-
           <div className="flex-1">
             <ShoppingCart
               items={cart}
@@ -112,36 +136,19 @@ const Index = () => {
           <section className="py-16 bg-background">
             <div className="container mx-auto px-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ backgroundColor: '#FDD8A8' }}
-                  >
-                    <Truck className="h-8 w-8 text-accent-foreground" />
+                {[
+                  { icon: Truck, title: "Free Shipping", desc: "Free shipping on orders over RS3,000" },
+                  { icon: Shield, title: "Quality Guarantee", desc: "Premium quality guaranteed" },
+                  { icon: RefreshCw, title: "30-Day Returns", desc: "Easy returns within 30 days" }
+                ].map(({ icon: Icon, title, desc }, index) => (
+                  <div className="text-center" key={index}>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#FDD8A8' }}>
+                      <Icon className="h-8 w-8 text-accent-foreground" />
+                    </div>
+                    <h3 className="font-semibold mb-2">{title}</h3>
+                    <p className="text-sm text-muted-foreground">{desc}</p>
                   </div>
-                  <h3 className="font-semibold mb-2">Free Shipping</h3>
-                  <p className="text-sm text-muted-foreground">Free shipping on orders over RS3,000</p>
-                </div>
-                <div className="text-center">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ backgroundColor: '#FDD8A8' }}
-                  >
-                    <Shield className="h-8 w-8 text-accent-foreground" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Quality Guarantee</h3>
-                  <p className="text-sm text-muted-foreground">Premium quality guaranteed</p>
-                </div>
-                <div className="text-center">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ backgroundColor: '#FDD8A8' }}
-                  >
-                    <RefreshCw className="h-8 w-8 text-accent-foreground" />
-                  </div>
-                  <h3 className="font-semibold mb-2">30-Day Returns</h3>
-                  <p className="text-sm text-muted-foreground">Easy returns within 30 days</p>
-                </div>
+                ))}
               </div>
             </div>
           </section>
@@ -156,9 +163,7 @@ const Index = () => {
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">Featured Products</h2>
-                <p className="text-lg text-muted-foreground">
-                  Discover our handpicked selection of trending fashion items
-                </p>
+                <p className="text-lg text-muted-foreground">Discover our handpicked selection of trending fashion items</p>
               </div>
 
               <div className="mb-8">

@@ -4,30 +4,34 @@ export interface Product {
   description: string;
   price: number;
   originalPrice?: number;
-  image: string;
-  images?: string[]; // Added: Optional array for multiple images
+  image: string; // Make sure this is present and not optional if ProductManager expects it
+  images?: string[]; // Optional array for multiple images
   category: 'men' | 'women' | 'kids';
   subcategory: string;
-  sizes: string[]; // Changed to required
-  colors: string[]; // Changed to required
-  selectedSize?: string; // Kept as optional in Product, as it's selected later
-  selectedColor?: string; // Kept as optional in Product, as it's selected later
-  inStock: boolean;
-  stockQuantity: number;
+  sizes: string[];
+  colors: string[]; // Make sure this is present and not optional if ProductManager expects it
+  selectedSize?: string;
+  selectedColor?: string;
+  inStock: boolean; // Make sure this is present and not optional if ProductManager expects it
+  stockQuantity: number; // Make sure this is present and not optional if ProductManager expects it
   rating: number;
-  reviews: number;
+  reviews: Review[]; // This should likely be `reviews: Review[]` or similar, not `number`, if ProductManager uses it for a list of reviews. If it's a count, then `number` is fine. I'll keep it as number for now based on your definition, but be aware of this potential mismatch.
   isNew?: boolean;
   isFeatured?: boolean;
-  tags?: string[]; // Added: Optional tags array
+  tags: string[]; // Make 'tags' required
+  totalStocks: number;
+  mainImageUrl: string;
+  createdAt: Date | import("firebase/firestore").Timestamp;
+  updatedAt: Date | import("firebase/firestore").Timestamp;
 }
 
 export interface CartItem extends Product {
   quantity: number;
-  selectedSize: string; // Changed to required
-  selectedColor: string; // Changed to required
+  selectedSize: string;
+  selectedColor: string;
 }
 
-export interface WishlistItem extends Product {} // Added: WishlistItem interface
+export interface WishlistItem extends Product {}
 
 export interface Order {
   id: string;
@@ -45,14 +49,14 @@ export interface Order {
   };
   paymentMethod: string;
   trackingNumber?: string;
-  discountCode?: string; // Added: Optional discount code
-  discountAmount?: number; // Added: Optional discount amount
+  discountCode?: string;
+  discountAmount?: number;
   estimatedDelivery?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface Review { // Added: Review interface
+export interface Review {
   id: string;
   productId: string;
   userId: string;
@@ -63,7 +67,7 @@ export interface Review { // Added: Review interface
   helpful: number;
 }
 
-export interface User { // Added: User interface
+export interface User {
   id: string;
   email: string;
   name: string;

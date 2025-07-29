@@ -7,6 +7,16 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCart } from '@/contexts/CartContext'; // NEW: Import useCart
 
+// Assuming Review is defined elsewhere, e.g., in types/product or types/review
+// If not, you might need to define it here or import it.
+// Example:
+// interface Review {
+//   id: string;
+//   author: string;
+//   comment: string;
+//   rating: number;
+// }
+
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
@@ -61,7 +71,15 @@ export const ProductCard = ({
 
   return (
     <Card className="group overflow-hidden shadow-card hover:shadow-product transition-all duration-300 hover:-translate-y-1">
-      {/* Wrap the entire clickable area with Link */}
+      {/* Wishlist Button - Moved outside the Link to prevent redirection */}
+      <button
+        className="absolute top-2 right-2 bg-white/80 hover:bg-white inline-flex items-center justify-center rounded-md text-sm font-medium h-10 w-10 p-0 z-20"
+        onClick={handleToggleWishlistClick}
+      >
+        <Heart className={`h-4 w-4 transition-all duration-300 ${isInWishlist ? 'fill-red-500 text-red-500 scale-110' : ''}`} />
+      </button>
+      
+      {/* Wrap the product content with Link */}
       <Link to={`/product/${product.id}`} className="block h-full">
         <div className="relative">
           <img
@@ -72,14 +90,6 @@ export const ProductCard = ({
               e.currentTarget.src = `https://placehold.co/400x400/F0F0F0/000000?text=No+Image`;
             }}
           />
-
-          {/* Wishlist Button */}
-          <button
-            className="absolute top-2 right-2 bg-white/80 hover:bg-white inline-flex items-center justify-center rounded-md text-sm font-medium h-10 w-10 p-0 z-10"
-            onClick={handleToggleWishlistClick}
-          >
-            <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
-          </button>
 
           {/* Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
@@ -111,7 +121,8 @@ export const ProductCard = ({
           <div className="flex items-center gap-2 mb-3">
             <div className="flex">{renderStars(product.rating)}</div>
             <span className="text-sm text-muted-foreground">
-              ({product.reviews})
+              {/* FIX: Access the length property of the reviews array */}
+              ({product.reviews.length})
             </span>
           </div>
 

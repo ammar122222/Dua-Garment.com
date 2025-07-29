@@ -1,438 +1,157 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Save, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { collection, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { db } from "@/firebase";
 import { Product } from "@/types/product";
+import AddProductForm from "@/components/AddProductForm";
 
-// Define ProductManagerProps interface at the top level
-interface ProductManagerProps {
-  products: Product[];
-  onProductUpdate: (products: Product[]) => void;
-}
-
-// Define ProductFormProps interface at the top level
-interface ProductFormProps {
-  formData: Partial<Product>;
-  setFormData: React.Dispatch<React.SetStateAction<Partial<Product>>>;
-}
-
-// Define ProductForm component outside of ProductManager to prevent unnecessary re-renders
-const ProductForm = ({ formData, setFormData }: ProductFormProps) => (
-  <ScrollArea className="h-[600px] px-4">
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="name">Product Name *</Label>
-          <Input
-            id="name"
-            value={formData.name || ""}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
-            placeholder="Enter product name"
-          />
-        </div>
-        <div>
-          <Label htmlFor="category">Category *</Label>
-          <Select
-            value={formData.category}
-            onValueChange={(value: "men" | "women" | "kids") =>
-              setFormData({ ...formData, category: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="men">Men</SelectItem>
-              <SelectItem value="women">Women</SelectItem>
-              <SelectItem value="kids">Kids</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="description">Description *</Label>
-        <Textarea
-          id="description"
-          value={formData.description || ""}
-          onChange={(e) => setFormData({...formData, description: e.target.value})}
-          placeholder="Enter product description"
-        />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="price">Price *</Label>
-          <Input
-            id="price"
-            type="number"
-            value={formData.price || ""}
-            onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value)})}
-            placeholder="0.00"
-          />
-        </div>
-        <div>
-          <Label htmlFor="originalPrice">Original Price</Label>
-          <Input
-            id="originalPrice"
-            type="number"
-            value={formData.originalPrice || ""}
-            onChange={(e) => setFormData({...formData, originalPrice: parseFloat(e.target.value)})}
-            placeholder="0.00"
-          />
-        </div>
-        <div>
-          <Label htmlFor="stockQuantity">Stock Quantity</Label>
-          <Input
-            id="stockQuantity"
-            type="number"
-            value={formData.stockQuantity || ""}
-            onChange={(e) => setFormData({...formData, stockQuantity: parseInt(e.target.value)})}
-            placeholder="10"
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="image">Main Image URL</Label>
-        <Input
-          id="image"
-          value={formData.image || ""}
-          onChange={(e) => setFormData({...formData, image: e.target.value})}
-          placeholder="Enter main image URL"
-        />
-      </div>
-
-      {/* NEW: Additional Image URLs field */}
-      <div>
-        <Label htmlFor="images">Additional Image URLs (comma-separated)</Label>
-        <Input
-          id="images"
-          value={formData.images?.join(", ") || ""}
-          onChange={(e) => setFormData({...formData, images: e.target.value.split(", ").map(s => s.trim()).filter(s => s !== '')})}
-          placeholder="URL1, URL2, URL3"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="subcategory">Subcategory</Label>
-          <Input
-            id="subcategory"
-            value={formData.subcategory || ""}
-            onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
-            placeholder="e.g., shirts, pants, dresses"
-          />
-        </div>
-        <div>
-          <Label htmlFor="rating">Rating</Label>
-          <Input
-            id="rating"
-            type="number"
-            min="0"
-            max="5"
-            step="0.1"
-            value={formData.rating || ""}
-            onChange={(e) => setFormData({...formData, rating: parseFloat(e.target.value)})}
-            placeholder="4.5"
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="sizes">Sizes (comma-separated)</Label>
-        <Input
-          id="sizes"
-          value={formData.sizes?.join(", ") || ""}
-          onChange={(e) => setFormData({...formData, sizes: e.target.value.split(", ").map(s => s.trim()).filter(s => s !== '')})}
-          placeholder="S, M, L, XL"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="colors">Colors (comma-separated)</Label>
-        <Input
-          id="colors"
-          value={formData.colors?.join(", ") || ""}
-          onChange={(e) => setFormData({...formData, colors: e.target.value.split(", ").map(c => c.trim()).filter(c => c !== '')})}
-          placeholder="Black, White, Blue"
-        />
-      </div>
-
-      <div className="flex space-x-4">
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={formData.inStock ?? true}
-            onChange={(e) => setFormData({...formData, inStock: e.target.checked})}
-          />
-          <span>In Stock</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={formData.isNew ?? false}
-            onChange={(e) => setFormData({...formData, isNew: e.target.checked})}
-          />
-          <span>New Arrival</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={formData.isFeatured ?? false}
-            onChange={(e) => setFormData({...formData, isFeatured: e.target.checked})}
-          />
-          <span>Featured</span>
-        </label>
-      </div>
-    </div>
-  </ScrollArea>
-);
-
-export const ProductManager = ({ products, onProductUpdate }: ProductManagerProps) => {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+const ProductManager: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<Partial<Product>>({});
-  const { toast } = useToast();
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      price: 0,
-      originalPrice: 0,
-      image: "",
-      images: [], // Initialize images as an empty array
-      category: "men",
-      subcategory: "",
-      sizes: [], // Initialize sizes as empty array
-      colors: [], // Initialize colors as empty array
-      inStock: true,
-      stockQuantity: 10,
-      rating: 4.5,
-      reviews: 0,
-      isNew: false,
-      isFeatured: false
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "products"), (snapshot) => {
+      const prods: Product[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(prods);
     });
-  };
+    return () => unsub();
+  }, []);
 
-  const handleAddProduct = () => {
-    if (!formData.name || !formData.description || !formData.price) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this product?")) {
+      await deleteDoc(doc(db, "products", id));
     }
-
-    const newProduct: Product = {
-      id: Date.now().toString(),
-      name: formData.name!,
-      description: formData.description!,
-      price: formData.price!,
-      originalPrice: formData.originalPrice,
-      image: formData.image || "https://placehold.co/400x400/F0F0F0/000000?text=No+Image", // Default placeholder
-      images: formData.images || [], // Ensure images is an array
-      category: formData.category as 'men' | 'women' | 'kids' || 'men',
-      subcategory: formData.subcategory || "clothing",
-      sizes: formData.sizes || [], // Ensure sizes is an array
-      colors: formData.colors || [], // Ensure colors is an array
-      inStock: formData.inStock ?? true,
-      stockQuantity: formData.stockQuantity || 10,
-      rating: formData.rating || 4.5,
-      reviews: formData.reviews || 0,
-      isNew: formData.isNew || false,
-      isFeatured: formData.isFeatured || false
-    };
-
-    onProductUpdate([...products, newProduct]);
-    resetForm();
-    setIsAddDialogOpen(false);
-
-    toast({
-      title: "Product Added",
-      description: `${newProduct.name} has been added to inventory.`,
-    });
   };
 
-  const handleEditProduct = () => {
-    if (!editingProduct || !formData.name || !formData.description || !formData.price) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const updatedProduct: Product = {
-      ...editingProduct,
-      name: formData.name!,
-      description: formData.description!,
-      price: formData.price!,
-      originalPrice: formData.originalPrice,
-      image: formData.image || editingProduct.image,
-      images: formData.images || [], // Ensure images is an array
-      category: formData.category as 'men' | 'women' | 'kids' || editingProduct.category,
-      subcategory: formData.subcategory || editingProduct.subcategory,
-      sizes: formData.sizes || editingProduct.sizes,
-      colors: formData.colors || editingProduct.colors,
-      inStock: formData.inStock ?? editingProduct.inStock,
-      stockQuantity: formData.stockQuantity || editingProduct.stockQuantity,
-      rating: formData.rating || editingProduct.rating,
-      reviews: formData.reviews || editingProduct.reviews,
-      isNew: formData.isNew ?? editingProduct.isNew,
-      isFeatured: formData.isFeatured ?? editingProduct.isFeatured
-    };
-
-    onProductUpdate(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
-    setEditingProduct(null);
-    resetForm();
-
-    toast({
-      title: "Product Updated",
-      description: `${updatedProduct.name} has been updated.`,
-    });
-  };
-
-  const handleDeleteProduct = (productId: string) => {
-    const product = products.find(p => p.id === productId);
-    onProductUpdate(products.filter(p => p.id !== productId));
-
-    toast({
-      title: "Product Deleted",
-      description: `${product?.name} has been removed from inventory.`,
-    });
-  };
-
-  const openEditDialog = (product: Product) => {
+  const handleEdit = (product: Product) => {
     setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      image: product.image,
-      images: product.images, // Populate images for editing
-      category: product.category,
-      subcategory: product.subcategory,
-      sizes: product.sizes,
-      colors: product.colors,
-      inStock: product.inStock,
-      stockQuantity: product.stockQuantity,
-      rating: product.rating,
-      reviews: product.reviews,
-      isNew: product.isNew,
-      isFeatured: product.isFeatured
-    });
+  };
+
+  const handleUpdate = async (updated: Product) => {
+    const { id, ...rest } = updated;
+    await updateDoc(doc(db, "products", id), rest);
+    setEditingProduct(null);
+  };
+
+  const handleProductAdded = (product: Product) => {
+    setShowAddForm(false);
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Product Management</CardTitle>
-            <CardDescription>Add, edit, and manage your product inventory</CardDescription>
-          </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl" style={{ backgroundColor: 'hsl(0 0% 100%)' }}>
-              <DialogHeader>
-                <DialogTitle>Add New Product</DialogTitle>
-                <DialogDescription>Fill in the product details below</DialogDescription>
-              </DialogHeader>
-              {/* Pass formData and setFormData as props */}
-              <ProductForm formData={formData} setFormData={setFormData} />
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddProduct}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Add Product
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[500px]">
-          <div className="space-y-4">
-            {products.map(product => (
-              <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded" />
-                  <div>
-                    <h3 className="font-medium">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground">{product.category} - {product.subcategory}</p>
-                    <p className="text-sm text-muted-foreground">Stock: {product.stockQuantity}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex space-x-2">
-                    {product.isNew && <Badge variant="secondary">New</Badge>}
-                    {product.isFeatured && <Badge variant="outline">Featured</Badge>}
-                    <Badge variant={product.inStock ? "default" : "destructive"}>
-                      {product.inStock ? "In Stock" : "Out of Stock"}
-                    </Badge>
-                  </div>
-                  <p className="font-medium">${product.price}</p>
-                  <div className="flex space-x-2">
-                    <Dialog open={editingProduct?.id === product.id} onOpenChange={(open) => !open && setEditingProduct(null)}>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" onClick={() => openEditDialog(product)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl" style={{ backgroundColor: 'hsl(0 0% 100%)' }}>
-                        <DialogHeader>
-                          <DialogTitle>Edit Product</DialogTitle>
-                          <DialogDescription>Update the product details below</DialogDescription>
-                        </DialogHeader>
-                        {/* Pass formData and setFormData as props */}
-                        <ProductForm formData={formData} setFormData={setFormData} />
-                        <div className="flex justify-end space-x-2 pt-4">
-                          <Button variant="outline" onClick={() => setEditingProduct(null)}>
-                            <X className="h-4 w-4 mr-2" />
-                            Cancel
-                          </Button>
-                          <Button onClick={handleEditProduct}>
-                            <Save className="h-4 w-4 mr-2" />
-                            Update Product
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteProduct(product.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Product Manager</h1>
+      <button
+        className="mb-4 px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+        onClick={() => setShowAddForm((v) => !v)}
+      >
+        {showAddForm ? "Close Add Product" : "Add Product"}
+      </button>
+      {showAddForm && <AddProductForm onProductAdded={handleProductAdded} />}
+      <div className="overflow-x-auto mt-6">
+        <table className="min-w-full bg-white border rounded shadow">
+          <thead>
+            <tr>
+              <th className="p-2 border">Name</th>
+              <th className="p-2 border">Category</th>
+              <th className="p-2 border">Tags</th>
+              <th className="p-2 border">Colors</th>
+              <th className="p-2 border">Price</th>
+              <th className="p-2 border">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((product) => (
+              <tr key={product.id} className="border-b">
+                <td className="p-2 border">{product.name}</td>
+                <td className="p-2 border">{product.category}</td>
+                <td className="p-2 border">{product.tags?.join(", ")}</td>
+                <td className="p-2 border">{product.colors?.join(", ")}</td>
+                <td className="p-2 border">Rs. {product.price}</td>
+                <td className="p-2 border">
+                  <button
+                    className="mr-2 px-2 py-1 bg-blue-500 text-white rounded"
+                    onClick={() => handleEdit(product)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="px-2 py-1 bg-red-500 text-white rounded"
+                    onClick={() => handleDelete(product.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
             ))}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+          </tbody>
+        </table>
+      </div>
+      {editingProduct && (
+        <EditProductInlineForm
+          product={editingProduct}
+          onCancel={() => setEditingProduct(null)}
+          onSave={handleUpdate}
+        />
+      )}
+    </div>
   );
 };
+
+// Inline edit form for editing a product
+const EditProductInlineForm: React.FC<{
+  product: Product;
+  onCancel: () => void;
+  onSave: (product: Product) => void;
+}> = ({ product, onCancel, onSave }) => {
+  const [form, setForm] = useState<Product>({ ...product });
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <form
+        className="bg-white p-6 rounded shadow w-full max-w-lg"
+        onSubmit={e => {
+          e.preventDefault();
+          onSave(form);
+        }}
+      >
+        <h2 className="text-xl font-bold mb-4">Edit Product</h2>
+        <input
+          className="w-full p-2 border rounded mb-2"
+          value={form.name}
+          onChange={e => setForm({ ...form, name: e.target.value })}
+          placeholder="Product Name"
+        />
+        <input
+          className="w-full p-2 border rounded mb-2"
+          value={form.price}
+          type="number"
+          onChange={e => setForm({ ...form, price: Number(e.target.value) })}
+          placeholder="Price"
+        />
+        <input
+          className="w-full p-2 border rounded mb-2"
+          value={form.category}
+          onChange={e => setForm({ ...form, category: e.target.value as any })}
+          placeholder="Category"
+        />
+        <input
+          className="w-full p-2 border rounded mb-2"
+          value={form.tags?.join(", ")}
+          onChange={e => setForm({ ...form, tags: e.target.value.split(",") })}
+          placeholder="Tags (comma separated)"
+        />
+        <input
+          className="w-full p-2 border rounded mb-2"
+          value={form.colors?.join(", ")}
+          onChange={e => setForm({ ...form, colors: e.target.value.split(",") })}
+          placeholder="Colors (comma separated)"
+        />
+        <div className="flex gap-2 mt-4">
+          <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded">Save</button>
+          <button type="button" className="px-4 py-2 bg-gray-400 text-white rounded" onClick={onCancel}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default ProductManager;

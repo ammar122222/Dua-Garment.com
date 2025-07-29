@@ -1,320 +1,433 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { sampleProducts } from "@/data/products"; // Assuming your product data is here
-import { Product, CartItem } from "@/types/product";
+import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ShoppingCart, Minus, Plus, Star } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Star, CheckCircle, User2, Heart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { db } from "@/firebase";
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import confetti from "canvas-confetti"; // 🎉
+
+interface Review {
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+}
 
 export const ProductDetailPage = () => {
-  const { id } = useParams<{ id: string }>(); // Get product ID from URL
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { addToCart } = useCart();
+  const { userInfo } = useAuth();
 
-  const [product, setProduct] = useState<Product | undefined>(undefined);
-  const [selectedSize, setSelectedSize] = useState<string | undefined>(undefined);
-  const [selectedColor, setSelectedColor] = useState<string | undefined>(undefined);
+  const [product, setProduct] = useState<Product>();
+  const [selectedSize, setSelectedSize] = useState<string>();
+  const [selectedColor, setSelectedColor] = useState<string>();
   const [quantity, setQuantity] = useState(1);
-  const [mainImage, setMainImage] = useState<string | undefined>(undefined); // State for the currently displayed main image
-  const [isSizeSelecting, setIsSizeSelecting] = useState(false); // State for size selection animation
-  const [isColorSelecting, setIsColorSelecting] = useState(false); // State for color selection animation
-  const [isAddingToCart, setIsAddingToCart] = useState(false); // NEW: State for add to cart animation
-
+  const [mainImage, setMainImage] = useState<string>();
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
 
   useEffect(() => {
-    const foundProduct = sampleProducts.find((p) => p.id === id);
-    if (foundProduct) {
-      setProduct(foundProduct);
-      // Set default selected size and color if available
-      if (foundProduct.sizes && foundProduct.sizes.length > 0) {
-        setSelectedSize(foundProduct.sizes[0]);
-      }
-      if (foundProduct.colors && foundProduct.colors.length > 0) {
-        setSelectedColor(foundProduct.colors[0]);
-      }
-      // Set the initial main image: prefer 'images' array first, then 'image' property
-      setMainImage(foundProduct.images?.[0] || foundProduct.image);
+    const fetchProduct = async () => {
+      if (!id) return;
 
-      console.log("Product loaded:", foundProduct);
-      console.log("Main image set to:", foundProduct.images?.[0] || foundProduct.image);
+      try {
+        const docRef = doc(db, "products", id);
+        const docSnap = await getDoc(docRef);
 
-    } else {
-      toast({
-        title: "Product Not Found",
-        description: "The product you are looking for does not exist.",
-        variant: "destructive",
-      });
-      navigate("/"); // Redirect to home page
-    }
-  }, [id, navigate, toast]);
+        if (docSnap.exists()) {
+          const foundProduct = docSnap.data() as Product;
+          setProduct(foundProduct);
+          setSelectedSize(foundProduct.sizes?.[0]);
+          setSelectedColor(foundProduct.colors?.[0]);
+          setMainImage(foundProduct.images?.[0] || foundProduct.image);
+        } else {
+          toast({ title: "Product Not Found", variant: "destructive" });
+          navigate("/");
+        }
+      } catch (error) {
+        console.error("Error fetching product:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load product details.",
+          variant: "destructive",
+        });
+        navigate("/");
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  // Check if product is in wishlist
+  useEffect(() => {
+    const checkWishlist = async () => {
+      if (!userInfo?.uid || !id) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, "users", userInfo.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const wishlist = userData.wishlist || [];
+          setIsInWishlist(wishlist.includes(id));
+        }
+      } catch (error) {
+        console.error("Error checking wishlist:", error);
+      }
+    };
+
+    checkWishlist();
+  }, [userInfo?.uid, id]);
 
   const handleAddToCart = () => {
-    if (!product || isAddingToCart) return; // Prevent multiple clicks during animation
-
-    // Check if sizes are required and not selected
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
-      toast({
-        title: "Size Required",
-        description: "Please select a size before adding to cart.",
-        variant: "destructive",
-      });
+    if (!product || !selectedSize || !selectedColor) {
+      toast({ title: "Please select size and color", variant: "destructive" });
       return;
     }
 
-    // Check if colors are required and not selected
-    if (product.colors && product.colors.length > 0 && !selectedColor) {
-      toast({
-        title: "Color Required",
-        description: "Please select a color before adding to cart.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // ✅ Fixed: correct usage of addToCart
+    addToCart(product, quantity, selectedSize, selectedColor);
 
-    setIsAddingToCart(true); // Start add to cart animation
+    toast({
+      title: "🎉 Product Added!",
+      description: `${product.name} has been added to your cart.`,
+    });
 
-    // Simulate adding to cart with a delay
-    setTimeout(() => {
-      const itemToAdd: CartItem = {
-        ...product, // Spread all properties from the product
-        quantity: quantity,
-        selectedSize: selectedSize || (product.sizes?.[0] || ''),
-        selectedColor: selectedColor || (product.colors?.[0] || ''),
-      } as CartItem; // Type assertion to satisfy TypeScript
+    confetti({
+      particleCount: 80,
+      spread: 60,
+      origin: { y: 0.6 },
+    });
 
-      addToCart(itemToAdd);
-      toast({
-        title: "Added to Cart!",
-        description: `${quantity} x ${product.name} added to your cart.`,
-        variant: "default",
-      });
-      setIsAddingToCart(false); // End add to cart animation
-    }, 300); // Animation duration for add to cart
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
   };
 
-  const renderStars = (rating: number) => {
+  const toggleWishlist = async () => {
+    if (!userInfo?.uid || !id) {
+      toast({ title: "Please login to add to wishlist", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", userInfo.uid);
+      
+      if (isInWishlist) {
+        await updateDoc(userRef, {
+          wishlist: arrayRemove(id)
+        });
+        setIsInWishlist(false);
+        toast({ title: "Removed from wishlist" });
+      } else {
+        await updateDoc(userRef, {
+          wishlist: arrayUnion(id)
+        });
+        setIsInWishlist(true);
+        toast({ title: "Added to wishlist" });
+      }
+    } catch (error) {
+      console.error("Error updating wishlist:", error);
+      toast({ title: "Failed to update wishlist", variant: "destructive" });
+    }
+  };
+
+  const calculateAverageRating = (reviews: Review[]) => {
+    if (!reviews || reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
+    return (sum / reviews.length).toFixed(1);
+  };
+
+  const getRatingDistribution = (reviews: Review[]) => {
+    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews?.forEach(review => {
+      distribution[review.rating as keyof typeof distribution]++;
+    });
+    return distribution;
+  };
+
+  const formatDate = (date: any) => {
+    if (!date) return "N/A";
+    const d = date.toDate ? date.toDate() : new Date(date);
+    return d.toLocaleDateString();
+  };
+
+  const renderStars = (rating: number, size: number = 16) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`h-5 w-5 ${
-          i < Math.floor(rating)
-            ? "fill-yellow-400 text-yellow-400"
-            : "text-gray-300"
+        size={size}
+        className={`${
+          i < rating ? "text-yellow-400 fill-current" : "text-gray-300"
         }`}
       />
     ));
   };
 
-  // Handle size selection with animation
-  const handleSizeSelect = (size: string) => {
-    setSelectedSize(size);
-    setIsSizeSelecting(true);
-    setTimeout(() => {
-      setIsSizeSelecting(false);
-    }, 200); // Animation duration
-  };
-
-  // Handle color selection with animation
-  const handleColorSelect = (color: string) => {
-    setSelectedColor(color);
-    setIsColorSelecting(true);
-    setTimeout(() => {
-      setIsColorSelecting(false);
-    }, 200); // Animation duration
-  };
-
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading product details...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8 min-h-screen">
-      <Button variant="outline" onClick={() => navigate(-1)} className="mb-6">
-        &larr; Back to Products
-      </Button>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Product Image Gallery */}
-        <div className="flex flex-col items-center">
-          <img
-            src={mainImage || "/placeholder.svg"} // Use mainImage state for the large display
-            alt={product.name}
-            className="w-full max-w-lg h-auto object-contain rounded-lg shadow-md"
-            onError={(e) => {
-              // Fallback for any truly broken image URL, even after initial processing
-              e.currentTarget.src = `https://placehold.co/600x600/E0E0E0/000000?text=Image+Error`;
-            }}
-          />
-          {/* Dynamic thumbnails from product.images array */}
-          {product.images && product.images.length > 0 && (
-            <div className="flex space-x-2 mt-4 overflow-x-auto pb-2">
-              {product.images.map((imgUrl, index) => (
-                <img
-                  key={index}
-                  src={imgUrl}
-                  alt={`Thumbnail ${index + 1}`}
-                  className={`w-20 h-20 object-cover rounded-md border cursor-pointer transition-all duration-200 ease-in-out
-                    ${mainImage === imgUrl ? "border-primary-foreground scale-105 shadow-md" : "border-input hover:border-primary"}`}
-                  onClick={() => setMainImage(imgUrl)} // Set mainImage on thumbnail click
-                  onError={(e) => {
-                    e.currentTarget.src = `https://placehold.co/80x80/E0E0E0/000000?text=Thumb+Error`;
-                  }}
-                />
-              ))}
-            </div>
-          )}
+    <div className="relative px-6 py-8 max-w-6xl mx-auto">
+      {/* ✅ Floating Success Toast */}
+      {showSuccess && (
+        <div className="fixed top-5 right-5 z-50 flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fadeIn glow">
+          <CheckCircle className="mr-2" />
+          Added to Cart!
         </div>
+      )}
 
-        {/* Product Details */}
-        <div className="space-y-6">
-          <h1 className="text-4xl font-extrabold text-foreground">{product.name}</h1>
-          <div className="flex items-center space-x-3">
-            <span className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</span>
-            {product.originalPrice && product.originalPrice > product.price && (
-              <span className="text-lg text-muted-foreground line-through">
-                ${product.originalPrice.toFixed(2)}
-              </span>
-            )}
-            {product.isNew && <Badge className="bg-blue-500 text-white">New Arrival</Badge>}
-            {product.isFeatured && <Badge variant="outline">Featured</Badge>}
-          </div>
-
-          {/* Rating */}
-          {product.rating !== undefined && (
-            <div className="flex items-center space-x-2">
-              <div className="flex">{renderStars(product.rating)}</div>
-              <span className="text-sm text-muted-foreground">({product.reviews} Reviews)</span>
-            </div>
-          )}
-
-          <p className="text-muted-foreground leading-relaxed">{product.description}</p>
-
-          <Separator />
-
-          {/* Size Selection */}
-          {product.sizes && product.sizes.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-base">Select Size:</Label>
-              <RadioGroup
-                value={selectedSize}
-                onValueChange={handleSizeSelect} // Use new handler
-                className="flex flex-wrap gap-2"
-              >
-                {product.sizes.map((size) => (
-                  <div key={size}>
-                    <RadioGroupItem value={size} id={`size-${size}`} className="sr-only" />
-                    <Label
-                      htmlFor={`size-${size}`}
-                      className={`
-                        flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium
-                        cursor-pointer transition-all duration-200 ease-in-out
-                        ${selectedSize === size
-                          ? `bg-primary text-primary-foreground border-primary ${isSizeSelecting ? 'scale-105' : ''}` // Apply animation class
-                          : "border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                        }
-                      `}
-                    >
-                      {size}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          )}
-
-          {/* Color Selection (basic example, could be color swatches) */}
-          {product.colors && product.colors.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-base">Select Color:</Label>
-              <RadioGroup
-                value={selectedColor}
-                onValueChange={handleColorSelect} // Use new handler
-                className="flex flex-wrap gap-2"
-              >
-                {product.colors.map((color) => (
-                  <div key={color}>
-                    <RadioGroupItem value={color} id={`color-${color}`} className="sr-only" />
-                    <Label
-                      htmlFor={`color-${color}`}
-                      className={`
-                        flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium
-                        cursor-pointer transition-all duration-200 ease-in-out
-                        ${selectedColor === color
-                          ? `bg-primary text-primary-foreground border-primary ${isColorSelecting ? 'scale-105' : ''}` // Apply animation class
-                          : "border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                        }
-                      `}
-                    >
-                      {color}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          )}
-
-          {/* Quantity Selector */}
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="quantity" className="text-base">Quantity:</Label>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Input
-              id="quantity"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-20 text-center"
-              min="1"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setQuantity(quantity + 1)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Add to Cart Button */}
-          <Button
-            size="lg"
-            className={`w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform duration-300 ease-out
-              ${isAddingToCart ? 'scale-105' : ''}`} // Apply animation class
-            onClick={handleAddToCart}
-            disabled={
-              (product.sizes && product.sizes.length > 0 && !selectedSize) ||
-              (product.colors && product.colors.length > 0 && !selectedColor) ||
-              isAddingToCart // Disable button during animation
-            }
-          >
-            <ShoppingCart className="h-5 w-5 mr-2" />
-            {isAddingToCart ? "Adding..." : "Add to Cart"} {/* Change text during animation */}
-          </Button>
-
-          {/* Stock Information */}
-          <p className="text-sm text-muted-foreground">
-            {product.inStock && product.stockQuantity > 0
-              ? `In Stock (${product.stockQuantity} available)`
-              : "Out of Stock"}
-          </p>
-        </div>
+      {/* 🧭 Floating Navigation Buttons */}
+      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-4 z-40">
+        <Button
+          className="rounded-full p-3 bg-gradient-to-br from-indigo-500 to-violet-700 text-white shadow-xl hover:scale-110 transition"
+          onClick={() => navigate("/account")}
+        >
+          <User2 />
+        </Button>
+        <Button
+          className="rounded-full p-3 bg-gradient-to-br from-green-500 to-teal-700 text-white shadow-xl hover:scale-110 transition"
+          onClick={() => navigate("/checkout")}
+        >
+          <ShoppingCart />
+        </Button>
       </div>
+
+      {/* Product Details */}
+      {product ? (
+        <div className="space-y-8">
+          <div className="grid md:grid-cols-2 gap-10 animate-fadeIn">
+            {/* 🖼️ Product Images */}
+            <div>
+              <img
+                src={mainImage}
+                alt={product.name}
+                className="w-full h-auto rounded shadow-md transition hover:shadow-xl"
+              />
+              <div className="flex gap-2 mt-4">
+                {product.images?.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Thumb ${idx}`}
+                    className={`w-16 h-16 object-cover rounded cursor-pointer border ${
+                      img === mainImage
+                        ? "border-primary ring-2 ring-primary"
+                        : "border-gray-300 hover:opacity-75"
+                    } transition`}
+                    onClick={() => setMainImage(img)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 📋 Product Info */}
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+              <div className="flex items-center gap-4 mb-4">
+                <Badge>{product.category}</Badge>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center">
+                    {renderStars(Math.round(Number(calculateAverageRating(product.reviews || []))))}
+                  </div>
+                  <span className="text-sm text-gray-600">
+                    {calculateAverageRating(product.reviews || [])} ({product.reviews?.length || 0} reviews)
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-gray-600 mb-4">{product.description}</p>
+
+              <p className="text-3xl font-bold text-green-600 mb-6">
+                PKR {product.price.toLocaleString()}
+              </p>
+
+              <Separator className="my-4" />
+
+              {/* 🟦 Size Picker */}
+              {product.sizes?.length > 0 && (
+                <div className="mb-6">
+                  <Label className="mb-3 block font-medium">Select Size:</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {product.sizes.map((size) => (
+                      <Button
+                        key={size}
+                        variant={selectedSize === size ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedSize(size)}
+                        className={selectedSize === size ? "bg-black text-white" : ""}
+                      >
+                        {size}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 🟥 Color Picker */}
+              {product.colors?.length > 0 && (
+                <div className="mb-6">
+                  <Label className="mb-3 block font-medium">Select Color:</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {product.colors.map((color) => (
+                      <Button
+                        key={color}
+                        variant={selectedColor === color ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedColor(color)}
+                        className={selectedColor === color ? "bg-black text-white" : ""}
+                      >
+                        {color}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 🔢 Quantity Picker */}
+              <div className="flex items-center gap-3 mb-6">
+                <Label className="block font-medium">Quantity:</Label>
+                <div className="flex items-center border rounded-lg">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="p-2 hover:bg-gray-100"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="px-4 py-2 min-w-[3rem] text-center">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="p-2 hover:bg-gray-100"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* 🛒 Action Buttons */}
+              <div className="flex gap-3 mb-6">
+                <Button
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-black text-white transition-all duration-300 ease-in-out hover:scale-105 active:scale-95"
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
+                </Button>
+                <Button
+                  onClick={toggleWishlist}
+                  variant="outline"
+                  className={`p-3 ${isInWishlist ? 'text-red-500 border-red-500' : ''}`}
+                >
+                  <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
+                </Button>
+              </div>
+
+              {/* Stock Status */}
+              <div className="text-sm text-gray-600">
+                {product.inStock ? (
+                  <span className="text-green-600">✅ In Stock ({product.stockQuantity} available)</span>
+                ) : (
+                  <span className="text-red-600">❌ Out of Stock</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Reviews Section */}
+          <div className="mt-12">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Customer Reviews</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {product.reviews && product.reviews.length > 0 ? (
+                  <div className="space-y-6">
+                    {/* Rating Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
+                      <div className="text-center">
+                        <div className="text-4xl font-bold text-yellow-500 mb-2">
+                          {calculateAverageRating(product.reviews)}
+                        </div>
+                        <div className="flex justify-center mb-2">
+                          {renderStars(Math.round(Number(calculateAverageRating(product.reviews))), 20)}
+                        </div>
+                        <p className="text-gray-600">Based on {product.reviews.length} reviews</p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {Object.entries(getRatingDistribution(product.reviews))
+                          .reverse()
+                          .map(([rating, count]) => (
+                            <div key={rating} className="flex items-center gap-2">
+                              <span className="text-sm w-8">{rating}★</span>
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-yellow-400 h-2 rounded-full"
+                                  style={{
+                                    width: `${product.reviews?.length ? (count / product.reviews.length) * 100 : 0}%`
+                                  }}
+                                />
+                              </div>
+                              <span className="text-sm text-gray-600 w-8">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Individual Reviews */}
+                    <div className="space-y-4">
+                      {product.reviews.map((review, index) => (
+                        <div key={index} className="border-b pb-4 last:border-b-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold">{review.userName}</span>
+                                <div className="flex">
+                                  {renderStars(review.rating, 14)}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600">{formatDate(review.createdAt)}</p>
+                            </div>
+                          </div>
+                          <p className="text-gray-700">{review.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Star className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                    <p className="text-lg text-gray-600 mb-2">No reviews yet</p>
+                    <p className="text-sm text-gray-500">Be the first to review this product!</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <p className="text-center text-gray-600">Loading product details...</p>
+      )}
+
+      {/* 💅 Custom Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-in-out;
+        }
+        .glow {
+          box-shadow: 0 0 20px rgba(72, 187, 120, 0.8);
+        }
+      `}</style>
     </div>
   );
 };

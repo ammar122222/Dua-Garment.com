@@ -1,46 +1,72 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { AnimatedAlert } from "@/components/AnimatedAlert";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAuthenticated, role, login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    // Mock authentication - replace with real authentication
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (email === "admin@duagarments.com" && password === "admin123") {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back!",
-        });
-        navigate("/account");
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (role === "admin") {
+        navigate("/admin");
       } else {
-        throw new Error("Invalid credentials");
+        navigate("/account");
       }
-    } catch (error) {
+    }
+  }, [isAuthenticated, role, navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setAlert({ type: "error", message: "Please fill in both email and password." });
+      return;
+    }
+    setIsLoading(true);
+    const result = await login(email, password);
+    setIsLoading(false);
+    if (result.success) {
+      setAlert({ type: "success", message: "Successfully Logged In!" });
+      toast({
+        title: "Login Successful",
+        description: `Welcome back!`,
+      });
+      setTimeout(() => {
+        setAlert(null);
+        navigate(result.role === "admin" ? "/admin" : "/account");
+      }, 1200);
+    } else {
+      let message = "Invalid email or password. Try admin@duagarments.com / admin123";
+      if (result.error && result.error.code) {
+        if (result.error.code === "auth/user-not-found") {
+          message = "No account found with this email.";
+        } else if (result.error.code === "auth/wrong-password") {
+          message = "Incorrect password.";
+        } else if (result.error.code === "auth/invalid-email") {
+          message = "Invalid email address.";
+        } else if (result.error.code === "auth/too-many-requests") {
+          message = "Too many failed attempts. Please try again later.";
+        }
+      }
+      setAlert({ type: "error", message });
       toast({
         title: "Login Failed",
-        description: "Invalid email or password. Try admin@duagarments.com / admin123",
+        description: message,
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -56,6 +82,7 @@ const LoginPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {alert && <AnimatedAlert type={alert.type} message={alert.message} />}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -100,9 +127,7 @@ const LoginPage = () => {
               Sign up
             </Link>
           </div>
-          <div className="mt-2 text-center text-xs text-muted-foreground">
-            Demo: admin@duagarments.com / admin123
-          </div>
+         
         </CardContent>
       </Card>
     </div>

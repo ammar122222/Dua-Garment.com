@@ -5,156 +5,127 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud, Copy, Loader2, Image as ImageIcon } from 'lucide-react';
 
-// Define the ImageUploader component
-export const ImageUploader = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+// TODO: Set your ImgBB API key here
+const IMGBB_API_KEY = '9c9c4faeef9f91e57d93e122fcae5ade'; // <-- REPLACE THIS WITH YOUR REAL API KEY
+
+export const ImageUploader = ({
+  onUploadComplete,
+}: {
+  onUploadComplete: (urls: string[]) => void;
+}) => {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file)); // Create a URL for local preview
-      setUploadedImageUrl(null); // Reset uploaded URL on new file selection
-    } else {
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      setUploadedImageUrl(null);
-    }
+    const files = Array.from(event.target.files || []);
+    setSelectedFiles(files);
+    setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
+    setUploadedUrls([]);
   };
 
-  // Handle actual image upload to a hypothetical API endpoint
   const handleUpload = async () => {
-    if (!selectedFile) {
+    if (!selectedFiles.length) {
       toast({
-        title: "No file selected",
-        description: "Please select an image file to upload.",
-        variant: "destructive",
+        title: 'No files selected',
+        description: 'Please select image files to upload.',
+        variant: 'destructive',
       });
       return;
     }
 
     setIsLoading(true);
-    setUploadedImageUrl(null); // Clear previous URL
+    const newUrls: string[] = [];
 
-    const formData = new FormData();
-    formData.append('file', selectedFile); // 'file' is the common field name for file uploads
+    for (const file of selectedFiles) {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('key', IMGBB_API_KEY); // Set your ImgBB API Key above
 
-    // IMPORTANT: Replace this URL with your actual image hosting API endpoint.
-    // For example:
-    // - Your own backend: 'https://your-backend.com/api/upload-image'
-    // - Cloudinary (unsigned upload, for testing): 'https://api.cloudinary.com/v1_1/<YOUR_CLOUD_NAME>/image/upload'
-    //   (You'd also need to append 'upload_preset' to formData for Cloudinary unsigned uploads)
-    const UPLOAD_API_URL = 'https://your-image-hosting-api.com/upload'; // Placeholder URL
+      try {
+        const response = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-    try {
-      const response = await fetch(UPLOAD_API_URL, {
-        method: 'POST',
-        body: formData, // Send the FormData object
-        // Headers like 'Content-Type': 'multipart/form-data' are automatically set by fetch
-        // when you pass a FormData object. Do NOT set it manually.
-      });
+        const result = await response.json();
 
-      if (!response.ok) {
-        // Handle HTTP errors
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to upload image');
+        if (result?.data?.url) {
+          newUrls.push(result.data.url);
+        } else {
+          throw new Error('Invalid upload response');
+        }
+      } catch (error: any) {
+        console.error('Upload error:', error);
+        toast({
+          title: 'Upload Failed',
+          description: error.message || 'One or more images failed to upload.',
+          variant: 'destructive',
+        });
       }
-
-      const result = await response.json();
-      // IMPORTANT: Adjust 'result.url' based on the actual response structure of your chosen API.
-      // For Cloudinary, it might be result.secure_url. For others, it could be result.data.link, etc.
-      const directImageUrl = result.url || result.data?.url || `https://mock-image-hosting.com/uploaded/${Date.now()}-${selectedFile.name}`; // Fallback mock URL
-
-      setUploadedImageUrl(directImageUrl);
-
-      toast({
-        title: "Upload Successful!",
-        description: "Image uploaded and URL generated.",
-        variant: "default", // Changed from "success" to "default"
-      });
-    } catch (error: any) {
-      toast({
-        title: "Upload Failed",
-        description: error.message || "There was an error uploading the image.",
-        variant: "destructive",
-      });
-      console.error("Upload error:", error);
-    } finally {
-      setIsLoading(false);
     }
+
+    setUploadedUrls(newUrls);
+    onUploadComplete(newUrls); // Send URLs back to parent
+    setIsLoading(false);
+
+    toast({
+      title: 'Upload Complete',
+      description: `${newUrls.length} image(s) uploaded successfully.`,
+    });
   };
 
-  // Copy URL to clipboard
-  const handleCopyUrl = () => {
-    if (uploadedImageUrl) {
-      // Using document.execCommand('copy') for broader iframe compatibility
-      const tempInput = document.createElement('input');
-      tempInput.value = uploadedImageUrl;
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      document.execCommand('copy');
-      document.body.removeChild(tempInput);
-
-      toast({
-        title: "Copied!",
-        description: "Image URL copied to clipboard.",
-        variant: "default", // Changed from "success" to "default"
-      });
-    }
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: 'Copied!',
+      description: 'Image URL copied to clipboard.',
+    });
   };
 
-  // Trigger file input click
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
   return (
-    <div className="p-6 border rounded-lg shadow-sm space-y-6 max-w-md mx-auto bg-card text-card-foreground">
-      <h2 className="text-2xl font-bold text-center mb-4">Image Uploader</h2>
+    <div className="p-6 border rounded-lg shadow-sm space-y-6 max-w-xl mx-auto bg-card text-card-foreground">
+      <h2 className="text-2xl font-bold text-center mb-4">Upload Multiple Images</h2>
 
-      {/* File Input */}
-      <div className="space-y-2">
-        <Label htmlFor="image-upload">Select Image</Label>
-        <Input
-          id="image-upload"
-          type="file"
-          accept="image/*" // Accept only image files
-          onChange={handleFileChange}
-          ref={fileInputRef}
-          className="hidden" // Hide the default file input
-        />
-        <Button
-          onClick={triggerFileInput}
-          variant="outline"
-          className="w-full flex items-center justify-center space-x-2"
-        >
-          <ImageIcon className="h-5 w-5" />
-          <span>{selectedFile ? selectedFile.name : "Choose File"}</span>
-        </Button>
-      </div>
+      {/* Hidden File Input */}
+      <Input
+        type="file"
+        multiple
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <Button onClick={triggerFileInput} variant="outline" className="w-full">
+        <ImageIcon className="mr-2 h-5 w-5" />
+        Choose Images
+      </Button>
 
-      {/* Image Preview */}
-      {previewUrl && (
-        <div className="text-center">
-          <Label>Image Preview</Label>
-          <img
-            src={previewUrl}
-            alt="Image Preview"
-            className="mt-2 max-h-64 w-auto mx-auto rounded-md object-contain border"
-          />
+      {/* Previews */}
+      {previewUrls.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          {previewUrls.map((url, idx) => (
+            <img
+              key={idx}
+              src={url}
+              alt={`Preview ${idx + 1}`}
+              className="w-full h-32 object-cover rounded border"
+            />
+          ))}
         </div>
       )}
 
       {/* Upload Button */}
       <Button
         onClick={handleUpload}
-        disabled={!selectedFile || isLoading}
+        disabled={!selectedFiles.length || isLoading}
         className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
       >
         {isLoading ? (
@@ -165,30 +136,23 @@ export const ImageUploader = () => {
         ) : (
           <>
             <UploadCloud className="mr-2 h-5 w-5" />
-            Upload Image
+            Upload {selectedFiles.length} Image(s)
           </>
         )}
       </Button>
 
-      {/* Uploaded Image URL */}
-      {uploadedImageUrl && (
-        <div className="space-y-2">
-          <Label htmlFor="image-url">Direct Image URL</Label>
-          <div className="flex space-x-2">
-            <Input
-              id="image-url"
-              type="text"
-              value={uploadedImageUrl}
-              readOnly
-              className="flex-1 bg-muted/50"
-            />
-            <Button onClick={handleCopyUrl} variant="outline" size="icon">
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            You can now use this URL in your website code or backend.
-          </p>
+      {/* Uploaded URLs */}
+      {uploadedUrls.length > 0 && (
+        <div className="space-y-3 mt-6">
+          <Label>Uploaded Image URLs:</Label>
+          {uploadedUrls.map((url, idx) => (
+            <div key={idx} className="flex space-x-2 items-center">
+              <Input readOnly value={url} className="bg-muted/50" />
+              <Button size="icon" onClick={() => handleCopy(url)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
         </div>
       )}
     </div>

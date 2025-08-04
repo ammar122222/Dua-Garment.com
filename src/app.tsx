@@ -1,3 +1,5 @@
+// App.tsx
+
 import React, { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,8 +26,12 @@ import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import CopyrightPolicy from "./pages/CopyrightPolicy";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
 import AdminOrders from "./pages/AdminOrders";
 import IphonePage from "./pages/IphonePage";
+import ReturnsAndExchanges from "./pages/ReturnsAndExchanges";
 
 
 const queryClient = new QueryClient();
@@ -73,11 +79,15 @@ const App = () => {
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/copyright-policy" element={<CopyrightPolicy />} />
-              
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/cookie-policy" element={<CookiePolicy />} />
+<Route path="/returns-and-exchanges" element={<ReturnsAndExchanges is Open={false} onClose={function (): void {
+                throw new Error("Function not implemented.");
+              } } productId={""} productName={""} productImage={""} />} />
               {/* ✅ Admin Protected Routes */}
-<Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-<Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
-
+              <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+              <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
 
               {/* 404 */}
               <Route path="*" element={<NotFound />} />

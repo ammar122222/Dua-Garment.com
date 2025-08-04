@@ -1,111 +1,91 @@
-import { useEffect, useState } from "react";
-import { Header } from "@/components/Header";
-import { ProductCatalog } from "@/components/ProductCatalog";
-import { ShoppingCart } from "@/components/ShoppingCart";
-import { Footer } from "@/components/Footer";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Product } from "@/types/product";
-import { useCart } from "@/contexts/CartContext";
-import { ColorFilter } from "@/components/ColorFilter";
-import { db } from "@/firebase";
-import { collection, query, getDocs, Query, DocumentData } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { getDocs, collection, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
+import { ShoppingBag, Heart, ShoppingCart } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-interface ProductListingPageProps {
-  title: string;
-  firestoreQuery: Query<DocumentData>;
-  selectedCategory?: string;
+interface ProductItem {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
 }
 
-export const ProductListingPage: React.FC<ProductListingPageProps> = ({ title, firestoreQuery, selectedCategory }) => {
-  const [products, setProducts] = useState<Product[]>([]);
+export const ProductListingPage = () => { // Changed to a named export
+  const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const { cart, wishlist, addToCart, updateQuantity, removeFromCart, toggleWishlist, cartItemCount } = useCart();
-
-  const handleCheckout = () => {
-    window.location.href = "/checkout";
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const snapshot = await getDocs(firestoreQuery);
-        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        setProducts(items);
-      } catch (error) {
-        console.error(`❌ Failed to fetch products for "${title}":`, error);
+        const productsCollection = collection(db, 'products');
+        const querySnapshot = await getDocs(productsCollection);
+        const fetchedProducts = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ProductItem[];
+        setProducts(fetchedProducts);
+      } catch (err: any) {
+        console.error("Error fetching products: ", err);
+        setError(`Failed to fetch products: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [firestoreQuery, title]);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 text-center">
+        <h1 className="text-3xl font-bold text-red-600">Error: {error}</h1>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        cartItems={cartItemCount}
-        onCartClick={() => setIsCartOpen(true)}
-        onSearchChange={setSearchQuery}
-      />
-
-      <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        <SheetContent
-          className="w-full max-w-md flex flex-col h-full overflow-y-auto"
-          style={{ backgroundColor: "hsl(0 0% 100%)" }}
-        >
-          <SheetHeader className="pb-4">
-            <SheetTitle className="sr-only">Shopping Cart</SheetTitle>
-            <SheetDescription className="sr-only">
-              Review your items and proceed to checkout.
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex-1">
-            <ShoppingCart
-              items={cart}
-              onUpdateQuantity={updateQuantity}
-              onRemoveItem={removeFromCart}
-              onCheckout={handleCheckout}
-            />
+    <div className="container mx-auto p-8 max-w-7xl">
+      <h1 className="text-4xl font-extrabold text-center mb-12 text-gray-900">Men</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {products.map(product => (
+          <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+            <Link to={`/product/${product.id}`}>
+              <img 
+                src={product.image} 
+                alt={product.name} 
+                className="w-full h-64 object-cover"
+              />
+            </Link>
+            <div className="p-5">
+              <Link to={`/product/${product.id}`}>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2 truncate">{product.name}</h3>
+              </Link>
+              <p className="text-2xl font-bold text-blue-600">Rs. {product.price.toLocaleString()}</p>
+              <div className="flex items-center gap-2 mt-4">
+                <button className="flex-1 flex items-center justify-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors">
+                  <ShoppingCart size={16} />
+                  Add to Cart
+                </button>
+                <button className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
+                  <Heart size={16} />
+                </button>
+              </div>
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
-
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">{title}</h1>
-
-        <div className="mb-8">
-          <ColorFilter />
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          </div>
-        ) : (
-          <ProductCatalog
-            products={products}
-            onAddToCart={addToCart}
-            onToggleWishlist={toggleWishlist}
-            wishlist={wishlist}
-            searchQuery={searchQuery}
-            selectedCategory={selectedCategory}
-          />
-        )}
+        ))}
       </div>
-
-      <Footer />
     </div>
   );
 };

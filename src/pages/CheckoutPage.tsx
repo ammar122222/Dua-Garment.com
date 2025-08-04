@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Lock, Truck } from "lucide-react";
+import { Lock, Truck } from "lucide-react";
 import { db, auth } from "@/firebase";
 import { collection, addDoc, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { useCart } from "@/contexts/CartContext";
@@ -25,10 +25,6 @@ const CheckoutPage = () => {
     state: "",
     zipCode: "",
     country: "Pakistan",
-    cardNumber: "",
-    expiryDate: "",
-    cvv: "",
-    cardName: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -36,10 +32,16 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const { cart, clearCart, formatPrice } = useCart();
 
+  const COD_FEE = 50; // Added COD fee
+  const FREE_SHIPPING_THRESHOLD = 5000; // Added free shipping threshold
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal > 50 ? 0 : 9.99;
-  const tax = 0; // Tax removed as per request
-  const total = subtotal + shipping + tax;
+
+  // Updated shipping logic
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 100;
+  
+  // Updated total calculation to include COD fee
+  const total = subtotal + shipping + COD_FEE;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -76,18 +78,20 @@ const CheckoutPage = () => {
           zipCode: formData.zipCode,
           country: formData.country,
         },
-        items: cart.map(item => ({
-          ...item,
-          // Ensure each item has the required CartItem properties
-          quantity: item.quantity || 1,
-          selectedSize: item.selectedSize || 'Default',
-          selectedColor: item.selectedColor || 'Default',
+       items: cart.map(item => ({
+  id: item.id || null,
+  name: item.name || 'Unknown Item',
+  price: item.price || 0,
+  quantity: item.quantity || 1,
+  selectedSize: item.selectedSize || 'Default',
+  selectedColor: item.selectedColor || 'Default',
+  image: item.image || null,
         })),
         subtotal: parseFloat(subtotal.toFixed(2)),
         shipping: parseFloat(shipping.toFixed(2)),
         total: parseFloat(total.toFixed(2)),
         status: "pending" as const, // Type assertion to match the union type
-        paymentMethod: "Card",
+        paymentMethod: "Cash on Delivery", // Changed to fixed value
         trackingNumber: "",
         // Optional fields from the Order interface
         discountCode: "",
@@ -210,31 +214,7 @@ const CheckoutPage = () => {
                   </CardContent>
                 </Card>
 
-                {/* Payment Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5" />
-                      Payment Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Label htmlFor="cardNumber">Card Number</Label>
-                    <Input id="cardNumber" value={formData.cardNumber} onChange={handleChange} required />
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="expiryDate">Expiry Date</Label>
-                        <Input id="expiryDate" placeholder="MM/YY" value={formData.expiryDate} onChange={handleChange} required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input id="cvv" value={formData.cvv} onChange={handleChange} required />
-                      </div>
-                    </div>
-                    <Label htmlFor="cardName">Name on Card</Label>
-                    <Input id="cardName" value={formData.cardName} onChange={handleChange} required />
-                  </CardContent>
-                </Card>
+                {/* The following Card for Payment Info has been removed as per the request */}
 
                 <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                   {isLoading ? "Processing..." : (
@@ -270,6 +250,7 @@ const CheckoutPage = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
                     <div className="flex justify-between"><span>Shipping</span><span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span></div>
+                    <div className="flex justify-between"><span>Cash on Delivery</span><span>{formatPrice(COD_FEE)}</span></div>
                     <Separator />
                     <div className="flex justify-between font-semibold text-lg">
                       <span>Total</span><span>{formatPrice(total)}</span>
@@ -278,7 +259,7 @@ const CheckoutPage = () => {
 
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Truck className="h-4 w-4" />
-                    <span>Free shipping on orders over PKR 5000</span>
+                    <span>Free shipping on orders over {formatPrice(FREE_SHIPPING_THRESHOLD)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -293,4 +274,3 @@ const CheckoutPage = () => {
 };
 
 export default CheckoutPage;
-              

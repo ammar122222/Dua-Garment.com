@@ -1,97 +1,80 @@
-const CopyrightPolicy = () => {
+import { Link } from "react-router-dom";
+
+export default function CopyrightPolicy() {
   return (
-    <div className="px-6 py-12 max-w-4xl mx-auto">
-      <h1 className="text-4xl font-bold mb-6">Copyright Policy</h1>
-      <p className="mb-4 text-sm text-gray-500">Effective Date: July 15, 2025</p>
+    <div className="max-w-4xl mx-auto px-6 py-12 text-gray-800">
+      <h1 className="text-3xl font-bold mb-6">Copyright Policy</h1>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">1. Ownership and Intellectual Property</h2>
-        <p>
-          All content displayed on this website, including but not limited to images, clothing designs, catalogs, promotional material, UI/UX layouts, source code, logos, and written content, is the intellectual property of <strong>Dua Garments</strong> and/or its licensors, unless explicitly stated otherwise.
-        </p>
-        <p className="mt-2">
-          Unauthorized copying, reproduction, storage, distribution, or use of any such material, whether in digital or physical form, is strictly prohibited without express written consent from the owner.
-        </p>
-      </section>
+      <p className="mb-4">
+        This Copyright Policy outlines the ownership and protection of intellectual property presented on the CodeStudioX platform and governs how users may interact with our content. We take copyright infringement seriously and comply with all applicable laws, including the Copyright Ordinance of 1962 (Pakistan).
+      </p>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">2. Legal Protection Under Pakistani Law</h2>
-        <p>
-          This website and all associated content are protected under the <strong>Copyright Ordinance, 1962</strong> of Pakistan, which provides exclusive rights to creators for their original works. Any infringement may lead to legal proceedings under Sections 56–67 of the Ordinance, including:
-        </p>
-        <ul className="list-disc pl-6 mt-2">
-          <li>Monetary compensation or damages</li>
-          <li>Permanent or temporary injunction orders</li>
-          <li>Criminal penalties including fines up to Rs. 100,000 or imprisonment up to 3 years</li>
-        </ul>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">1. Ownership of Content</h2>
+      <p className="mb-4">
+        All content, including but not limited to code, design elements, logos, graphics, digital products, videos, text, and UI/UX components displayed on this website are the intellectual property of CodeStudioX, unless otherwise stated.
+      </p>
+      <p className="mb-4">
+        All rights are reserved. Unauthorized use, duplication, reproduction, or redistribution in any form without express written consent from CodeStudioX is strictly prohibited.
+      </p>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">3. Use of Licensed Third-Party Content</h2>
-        <p>
-          Certain assets such as background images or illustrations may be sourced from publicly available royalty-free platforms (e.g., Unsplash, Pexels, Freepik). These are used under proper licenses. We make every effort to ensure compliance with licensing terms.
-        </p>
-        <p className="mt-2">
-          If you believe any content on our website violates your copyright, please notify us immediately.
-        </p>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">2. Third-Party Assets</h2>
+      <p className="mb-4">
+        We may use open-source libraries, licensed images, fonts, icons, or third-party APIs. In such cases, appropriate credits or licenses are maintained in accordance with their respective terms of use. We do not claim ownership over such third-party materials.
+      </p>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">4. Your Rights and Restrictions</h2>
-        <ul className="list-disc pl-6">
-          <li>✅ You may view, access, and share public pages of this website for non-commercial purposes with clear attribution.</li>
-          <li>❌ You may not reproduce, republish, download, post, broadcast, transmit, or otherwise use our content in any way except for personal, non-commercial use.</li>
-          <li>❌ Modification or sale of our content, source code, or visuals is strictly forbidden.</li>
-        </ul>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">3. User-Generated Content</h2>
+      <p className="mb-4">
+        If you submit content (e.g. testimonials, reviews, feedback, uploaded media) to our website, you affirm that you have full ownership or rights to do so. By submitting, you grant us a non-exclusive, royalty-free, worldwide license to use, display, and publish such content.
+      </p>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">5. Reporting Infringement</h2>
-        <p>
-          If you believe your work has been copied in a way that constitutes copyright infringement, please email us with the following:
-        </p>
-        <ul className="list-disc pl-6 mt-2">
-          <li>A detailed description of the copyrighted work</li>
-          <li>Proof of ownership or license</li>
-          <li>URL or location of the content in question</li>
-        </ul>
-        <p className="mt-2">📧 Email: <a href="mailto:duagarments@gmail.com" className="text-blue-600 underline">duagarments@gmail.com</a></p>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">4. Copyright Infringement Notice</h2>
+      <p className="mb-4">
+        If you believe that your copyrighted work has been used or displayed on our platform without proper authorization, you may notify us by submitting the following information:
+      </p>
+      <ul className="list-disc pl-6 mb-4 text-gray-700">
+        <li>Your full name and contact information</li>
+        <li>A description of the copyrighted work being infringed</li>
+        <li>Direct links or exact location of the content in question</li>
+        <li>A statement affirming that you are the copyright owner or authorized to act on their behalf</li>
+        <li>A signature (digital or physical)</li>
+      </ul>
+      <p className="mb-4">
+        Please send this notice to:{" "}
+        <a
+          href="mailto:codestudioxbyblack@gmail.com"
+          className="text-blue-600 hover:underline"
+        >
+          codestudioxbyblack@gmail.com
+        </a>
+      </p>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">6. Consequences of Violation</h2>
-        <p>
-          Any unauthorized use or violation may result in:
-        </p>
-        <ul className="list-disc pl-6 mt-2">
-          <li>Legal takedown notices</li>
-          <li>Temporary or permanent banning of IP addresses</li>
-          <li>DMCA complaints (where applicable)</li>
-          <li>Civil lawsuits for financial damages</li>
-        </ul>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">5. Action Upon Notification</h2>
+      <p className="mb-4">
+        Upon receiving a valid copyright complaint, we may:
+      </p>
+      <ul className="list-disc pl-6 mb-4 text-gray-700">
+        <li>Remove or restrict access to the infringing content</li>
+        <li>Contact the user who posted it</li>
+        <li>Terminate repeat offender accounts</li>
+      </ul>
 
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-2">7. Updates to This Policy</h2>
-        <p>
-          We reserve the right to amend or update this policy at any time without prior notice. The revised version will be posted on this page with the updated effective date.
-        </p>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">6. Governing Law</h2>
+      <p className="mb-4">
+        This Copyright Policy is governed by the laws of Pakistan, specifically the provisions of the Copyright Ordinance, 1962, and any amendments thereto. Any disputes shall be subject to the exclusive jurisdiction of the courts in Lahore, Pakistan.
+      </p>
 
-      <section>
-        <h2 className="text-2xl font-semibold mb-2">8. Contact Information</h2>
-        <p>
-          For questions, complaints, or infringement reports, contact us at:
-          <br />📧 <strong>duagarments@gmail.com</strong>
-          <br />📍 Karachi, Sindh, Pakistan
-        </p>
-      </section>
+      <h2 className="text-xl font-semibold mt-8 mb-2">7. Contact Information</h2>
+      <p className="mb-4">
+        If you have any further questions regarding this policy, feel free to contact us at:{" "}
+        <a
+          href="mailto:codestudioxbyblack@gmail.com"
+          className="text-blue-600 hover:underline"
+        >
+          codestudioxbyblack@gmail.com
+        </a>
+      </p>
 
-      <footer className="mt-12 border-t pt-4 text-center text-sm text-gray-500">
-        © 2025 Dua Garments. All rights reserved.
-      </footer>
+      <p className="mt-8 text-sm text-gray-500">Last updated: August 2, 2025</p>
     </div>
   );
-};
-
-export default CopyrightPolicy;
+}

@@ -2,7 +2,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogContent,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import React, {
   createContext,
   useState,
@@ -162,7 +162,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return updatedCart;
       } else {
         const newItem: CartItem = {
-          id: product.id, // ✅ important: keep the ID
+          id: product.id,
           name: product.name,
           description: product.description,
           price: product.price,
@@ -170,9 +170,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           quantity: quantityToAdd,
           selectedSize: selectedSize || product.sizes?.[0] || '',
           selectedColor: selectedColor || product.colors?.[0] || '',
-          image: "",
-          category: "men",
-          subcategory: "",
+          // FIX: Assign the image URL correctly.
+          image: product.mainImageUrl || (product.images && product.images[0]) || '',
+          category: 'men',
+          subcategory: '',
           sizes: [],
           colors: [],
           inStock: false,
@@ -181,9 +182,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           reviews: [],
           tags: [],
           totalStocks: 0,
-          mainImageUrl: "",
+          mainImageUrl: '',
           createdAt: undefined,
-          updatedAt: undefined
+          updatedAt: undefined,
         };
 
         toast({
@@ -261,11 +262,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const exists = wishlist.some((item) => item.id === product.id);
-      const userRef = doc(db, "users", user.id);
+      const userRef = doc(db, 'users', user.id);
 
       if (exists) {
         await updateDoc(userRef, {
-          wishlist: arrayRemove(product.id)
+          wishlist: arrayRemove(product.id),
         });
 
         setWishlist((prevWishlist) => {
@@ -278,7 +279,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         });
       } else {
         await updateDoc(userRef, {
-          wishlist: arrayUnion(product.id)
+          wishlist: arrayUnion(product.id),
         });
 
         setWishlist((prevWishlist) => {

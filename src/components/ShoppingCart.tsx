@@ -36,7 +36,7 @@ export const ShoppingCart = ({
   // Ensure unique identification for cart items when calculating totals
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = subtotal > 50 ? 0 : 9.99;
-  const tax = subtotal * 0.08;
+  const tax = 0; // Removed tax calculation
   const total = subtotal + shipping + tax;
 
   if (items.length === 0) {
@@ -133,10 +133,6 @@ export const ShoppingCart = ({
           <div className="flex justify-between">
             <span>Shipping</span>
             <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span> {/* NEW: Use formatPrice */}
-          </div>
-          <div className="flex justify-between">
-            <span>Tax</span>
-            <span>{formatPrice(tax)}</span> {/* NEW: Use formatPrice */}
           </div>
           <Separator />
           <div className="flex justify-between font-semibold text-lg">
